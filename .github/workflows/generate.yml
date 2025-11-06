@@ -1,5 +1,8 @@
 name: Generate CustomCar
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
@@ -11,32 +14,35 @@ on:
 jobs:
   generate:
     runs-on: windows-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup .NET Framework
-      uses: actions/setup-dotnet@v3
+    - uses: actions/checkout@v4
       with:
-        dotnet-version: '4.8'
-    
+        fetch-depth: 1
+
+    - name: Cache NuGet
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
     - name: Build Core
-      run: |
-        dotnet build Core/CustomCarExporter.Core.csproj -c Release
-    
+      run: dotnet build Core/CustomCarExporter.Core.csproj -c Release
+
     - name: Build Generator
-      run: |
-        dotnet build Generator/Generator.csproj -c Release
-    
+      run: dotnet build Generator/Generator.csproj -c Release
+
     - name: Generate CustomCar
       run: |
         $payload = "${{ github.event.inputs.payload }}"
         $payload | Out-File -FilePath input.json -Encoding UTF8
         $output = "output.customcar"
         .\Generator\bin\Release\net48\Generator.exe input.json $output
-    
+
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: customcar_file
         path: output.customcar
