@@ -14,23 +14,32 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
     
     # setup-dotnet для .NET Framework 4.8 не требуется на windows-latest
     
     - name: Build Core
       run: |
-        dotnet build Core/CustomCarExporter.Core.csproj -c Release
+        msbuild Core/CustomCarExporter.Core.csproj /p:Configuration=Release
     
     - name: Build Generator
       run: |
-        dotnet build Generator/Generator.csproj -c Release
+        msbuild Generator/Generator.csproj /p:Configuration=Release
     
     - name: Generate CustomCar
+      shell: pwsh
       run: |
         $payload = "${{ github.event.inputs.payload }}"
         $payload | Out-File -FilePath input.json -Encoding UTF8
         $output = "output.customcar"
-        .\Generator\bin\Release\net48\Generator.exe input.json $output
+        $exe1 = Join-Path -Path "Generator\\bin\\Release\\net48" -ChildPath "Generator.exe"
+        $exe2 = "Generator\\bin\\Release\\Generator.exe"
+        if (Test-Path $exe1) { $exe = $exe1 }
+        elseif (Test-Path $exe2) { $exe = $exe2 }
+        else { throw "Generator.exe not found in Release output" }
+        & $exe input.json $output
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
